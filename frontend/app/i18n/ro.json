@@ -1,0 +1,11 @@
+{
+  "headerTitle": "Hawy Ariciul",
+  "headerSubtitle": "Prietenul tău de TaeKwon-Do",
+  "initialMessage": "Hei! Eu sunt Hawy Ariciul! 🦔 Sunt super entuziasmat să te învăț totul despre TaeKwon-Do! Întreabă-mă orice despre tull-uri, lovituri, blocaje sau pumni! Hai să învățăm împreună! 🥋",
+  "inputPlaceholder": "Întreabă-l pe Hawy despre TaeKwon-Do...",
+  "loadingText": "Hawy se gândește...",
+  "errorFallback": "Ups! Am avut o mică problemă. Poți să încerci din nou? 🦔",
+  "languageLabel": "Limba",
+  "languageRo": "RO",
+  "languageEn": "EN"
+}

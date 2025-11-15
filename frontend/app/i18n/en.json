@@ -1,0 +1,11 @@
+{
+  "headerTitle": "Hawy the Hedgehog",
+  "headerSubtitle": "Your TaeKwon-Do Friend",
+  "initialMessage": "Hi there! I'm Hawy the Hedgehog! 🦔 I'm super excited to teach you all about TaeKwon-Do! Ask me anything about patterns, kicks, blocks, or punches! Let's learn together! 🥋",
+  "inputPlaceholder": "Ask Hawy about TaeKwon-Do...",
+  "loadingText": "Hawy is thinking...",
+  "errorFallback": "Oops! I had a little trouble there. Can you try asking again? 🦔",
+  "languageLabel": "Language",
+  "languageRo": "RO",
+  "languageEn": "EN"
+}
