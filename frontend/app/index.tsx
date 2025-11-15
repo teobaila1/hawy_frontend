@@ -1,3 +1,4 @@
+// app/index.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -15,9 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import i18n from "i18next";
+import i18n from 'i18next';
+import { Redirect } from 'expo-router';
 
-// URL backend (Render + .env)
+import { useAuth } from '../context/AuthContext';
+
 const BACKEND_URL =
   Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL ||
   process.env.EXPO_PUBLIC_BACKEND_URL ||
@@ -35,7 +38,7 @@ interface Message {
   timestamp: Date;
 }
 
-// mesajul inițial al lui Hawy – îl folosim și la reset
+// mesaj inițial
 const INITIAL_HAWY_MESSAGE: Message = {
   id: '1',
   text: "Hi there! I'm Hawy the Hedgehog! 🦔 I'm super excited to teach you all about TaeKwon-Do! Ask me anything about patterns, kicks, blocks, or punches! Let's learn together! 🥋",
@@ -44,15 +47,18 @@ const INITIAL_HAWY_MESSAGE: Message = {
 };
 
 export default function Index() {
+  // --- HOOK-URI (ORDINE FIXĂ, FĂRĂ CONDIȚIONALE) -----------------------------
   const [messages, setMessages] = useState<Message[]>([INITIAL_HAWY_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(true); // încărcăm istoria din storage
+  const [isHydrating, setIsHydrating] = useState(true);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const sessionIdRef = useRef<string | null>(null); // session_id stabil, salvat în storage
+  const sessionIdRef = useRef<string | null>(null);
 
-  // 👉 La primul render: încărcăm istoria + session_id din AsyncStorage
+  const { user, initializing, logout } = useAuth();
+
+  // --- HIDRATARE ISTORIC + session_id ---------------------------------------
   useEffect(() => {
     const hydrateFromStorage = async () => {
       try {
@@ -89,19 +95,15 @@ export default function Index() {
     hydrateFromStorage();
   }, []);
 
-  // 👉 de fiecare dată când se schimbă mesajele: scroll jos
+  // --- scroll jos la fiecare mesaj nou --------------------------------------
   useEffect(() => {
     if (isHydrating) return;
-    scrollToBottom();
-  }, [messages, isHydrating]);
-
-  const scrollToBottom = () => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  };
+  }, [messages, isHydrating]);
 
-  // helper: salvează mesajele în AsyncStorage
+  // --- helper: persist mesaje -----------------------------------------------
   const persistMessages = async (msgs: Message[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(msgs));
@@ -110,7 +112,7 @@ export default function Index() {
     }
   };
 
-  // opțional: reset chat (șterge istoria + începe alt session_id)
+  // --- reset chat manual -----------------------------------------------------
   const resetChat = async () => {
     const freshMessage: Message = {
       ...INITIAL_HAWY_MESSAGE,
@@ -123,15 +125,30 @@ export default function Index() {
     sessionIdRef.current = newSessionId;
     setMessages([freshMessage]);
     await Promise.all([
-      AsyncStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify([freshMessage])),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.MESSAGES,
+        JSON.stringify([freshMessage]),
+      ),
       AsyncStorage.setItem(STORAGE_KEYS.SESSION_ID, newSessionId),
     ]);
   };
 
+  // --- logout ---------------------------------------------------------------
+  const handleLogout = async () => {
+    try {
+      await logout();
+      await AsyncStorage.removeItem(STORAGE_KEYS.MESSAGES);
+      await AsyncStorage.removeItem(STORAGE_KEYS.SESSION_ID);
+      setMessages([INITIAL_HAWY_MESSAGE]); // curățăm și state-ul local
+    } catch (err) {
+      console.error('Error during logout:', err);
+    }
+  };
+
+  // --- trimite mesaj --------------------------------------------------------
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading || isHydrating) return;
 
-    // ne asigurăm că avem un session_id
     if (!sessionIdRef.current) {
       const newSessionId = `session_${Date.now()}`;
       sessionIdRef.current = newSessionId;
@@ -149,7 +166,6 @@ export default function Index() {
     setIsLoading(true);
     Keyboard.dismiss();
 
-    // adăugăm mesajul userului + salvăm
     setMessages((prev) => {
       const updated = [...prev, userMessage];
       void persistMessages(updated);
@@ -158,21 +174,15 @@ export default function Index() {
 
     try {
       const currentSessionId = sessionIdRef.current!;
-      console.log('Sending message to:', `${BACKEND_URL}/api/chat`);
-
       const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage.text,
           session_id: currentSessionId,
-          language: i18n.language,        // <--- AICI trimitem “en” sau “ro”
+          language: i18n.language, // "en" sau "ro"
         }),
       });
-
-      console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -181,7 +191,6 @@ export default function Index() {
       }
 
       const data = await response.json();
-      console.log('Response data received');
 
       const hawyMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -213,6 +222,22 @@ export default function Index() {
     }
   };
 
+  // --- UI „loading” cât timp se încarcă auth / storage ----------------------
+  if (initializing || isHydrating) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar style="light" />
+        <Text style={styles.loadingTitle}>Loading Hawy…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // dacă nu există user după ce a terminat de inițializat → mergem la login
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+
+  // --- RENDER CHAT ----------------------------------------------------------
   const renderMessage = (message: Message) => {
     const isHawy = message.sender === 'hawy';
 
@@ -265,14 +290,25 @@ export default function Index() {
           </View>
           <View>
             <Text style={styles.headerTitle}>Hawy the Hedgehog</Text>
-            <Text style={styles.headerSubtitle}>Your TaeKwon-Do Friend</Text>
+            <Text style={styles.headerSubtitle}>
+              {user?.name
+                ? `${user.name} • Your TaeKwon-Do Friend`
+                : 'Your TaeKwon-Do Friend'}
+            </Text>
           </View>
         </View>
 
-        {/* Buton mic de reset chat */}
-        <TouchableOpacity style={styles.resetButton} onPress={resetChat}>
-          <Text style={styles.resetButtonText}>Reset chat</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.smallButton} onPress={resetChat}>
+            <Text style={styles.smallButtonText}>Reset</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.smallButton, styles.logoutButton]}
+            onPress={handleLogout}
+          >
+            <Text style={styles.smallButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Chat Messages */}
@@ -290,7 +326,9 @@ export default function Index() {
           {messages.map(renderMessage)}
 
           {isLoading && (
-            <View style={[styles.messageContainer, styles.hawyMessageContainer]}>
+            <View
+              style={[styles.messageContainer, styles.hawyMessageContainer]}
+            >
               <View style={styles.hawyAvatar}>
                 <Text style={styles.hawyAvatarText}>🦔</Text>
               </View>
@@ -342,6 +380,16 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingTitle: {
+    color: '#E5E7EB',
+    fontSize: 18,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F0F9FF',
@@ -365,6 +413,26 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  logoutButton: {
+    borderColor: '#FCA5A5',
+  },
+  smallButtonText: {
+    color: '#E0E7FF',
+    fontSize: 12,
   },
   logoContainer: {
     width: 56,
@@ -392,18 +460,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E0E7FF',
     marginTop: 2,
-  },
-  resetButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E7FF',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  resetButtonText: {
-    color: '#E0E7FF',
-    fontSize: 12,
   },
   chatContainer: {
     flex: 1,
