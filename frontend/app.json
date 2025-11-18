@@ -7,15 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "hawycoach",
     "userInterfaceStyle": "automatic",
-
     "androidStatusBar": {
       "backgroundColor": "#000000"
     },
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -24,13 +21,11 @@
       "edgeToEdgeEnabled": true,
       "package": "com.teutu22.hawycoach"
     },
-
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -43,19 +38,16 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": false
     },
-
     "extra": {
       "EXPO_PUBLIC_BACKEND_URL": "https://hawy-backend.onrender.com",
       "router": {},
       "eas": {
-        "projectId": "22a40e86-87e8-4722-8142-558ff180e520"
+        "projectId": "a92e7446-3ae7-49bf-81d1-3956776296a5"
       }
     },
-
     "owner": "teutu22"
   }
 }

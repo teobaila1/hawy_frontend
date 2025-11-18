@@ -14,6 +14,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 
+const COLORS = {
+  bg: '#050509',          // fundal foarte închis
+  card: '#111827',        // card închis
+  border: '#4B5563',
+  primary: '#DC2626',     // roșu Hwarang
+  primaryDark: '#B91C1C',
+  text: '#F9FAFB',        // alb cald
+  muted: '#9CA3AF',
+  accent: '#F97316',
+};
 
 export default function SignupScreen() {
   const { signup, user, loading } = useAuth();
@@ -52,7 +62,7 @@ export default function SignupScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </SafeAreaView>
     );
   }
@@ -63,85 +73,151 @@ export default function SignupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.inner}
       >
-        <Text style={styles.title}>Creează-ți un cont la Hawy 🦔</Text>
-        <Text style={styles.subtitle}>
-          Așa poți să revii oricând și să continui conversațiile.
-        </Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>Creează-ți cont cu Hawy</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nume"
-          value={name}
-          onChangeText={setName}
-        />
+          <Text style={styles.label}>Nume</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nume"
+            placeholderTextColor={COLORS.muted}
+            value={name}
+            onChangeText={setName}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={COLORS.muted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Parolă"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+          <Text style={styles.label}>Parolă</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Parolă"
+            placeholderTextColor={COLORS.muted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+          {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={handleSignup}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Înregistrează-te</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, submitting && styles.buttonDisabled]}
+            onPress={handleSignup}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Înregistrează-te</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/login')}>
-          <Text style={styles.linkText}>
-            Ai deja cont? <Text style={styles.linkStrong}>Loghează-te</Text>
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={styles.linkText}>
+              Ai deja cont?{' '}
+              <Text style={styles.linkStrong}>Loghează-te</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, backgroundColor: '#F0F9FF' },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 8, color: '#111827' },
-  subtitle: { fontSize: 14, marginBottom: 24, color: '#4B5563' },
+  center: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  inner: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: COLORS.primaryDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    marginBottom: 18,
+    color: COLORS.muted,
+    textAlign: 'center',
+  },
+  label: {
+    color: COLORS.muted,
+    fontSize: 13,
+    marginBottom: 4,
+    marginTop: 8,
+  },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#020617',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 12,
+    marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
+    color: COLORS.text,
   },
   button: {
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: 999,
     paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 12,
   },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  linkText: { textAlign: 'center', color: '#4B5563' },
-  linkStrong: { color: '#6366F1', fontWeight: '600' },
-  error: { color: '#DC2626', marginBottom: 8 },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  linkText: {
+    textAlign: 'center',
+    color: COLORS.muted,
+    fontSize: 13,
+  },
+  linkStrong: {
+    color: COLORS.accent,
+    fontWeight: '600',
+  },
+  error: {
+    color: '#FCA5A5',
+    marginTop: 6,
+    fontSize: 13,
+  },
 });

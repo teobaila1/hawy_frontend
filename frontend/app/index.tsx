@@ -18,6 +18,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from 'i18next';
 import { Redirect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';   // <<< Hwarang Gradient
 
 import { useAuth } from '../context/AuthContext';
 
@@ -41,13 +42,12 @@ interface Message {
 // mesaj inițial
 const INITIAL_HAWY_MESSAGE: Message = {
   id: '1',
-  text: "Hi there! I'm Hawy the Hedgehog! 🦔 I'm super excited to teach you all about TaeKwon-Do! Ask me anything about patterns, kicks, blocks, or punches! Let's learn together! 🥋",
+  text: "Salutare! Eu sunt Hawy Ariciul! 🦔 Sunt super încântat să te învăț totul despre TaeKwon-Do! Întreabă-mă orice despre tull-uri, lovituri cu piciorul, blocaje sau lovituri de pumn! Haide să învățăm împreună! 🥋",
   sender: 'hawy',
   timestamp: new Date(),
 };
 
 export default function Index() {
-  // --- HOOK-URI (ORDINE FIXĂ, FĂRĂ CONDIȚIONALE) -----------------------------
   const [messages, setMessages] = useState<Message[]>([INITIAL_HAWY_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +58,6 @@ export default function Index() {
 
   const { user, initializing, logout } = useAuth();
 
-  // --- HIDRATARE ISTORIC + session_id ---------------------------------------
   useEffect(() => {
     const hydrateFromStorage = async () => {
       try {
@@ -73,9 +72,7 @@ export default function Index() {
             ...m,
             timestamp: new Date(m.timestamp),
           }));
-          if (restored.length > 0) {
-            setMessages(restored);
-          }
+          if (restored.length > 0) setMessages(restored);
         }
 
         if (storedSessionId) {
@@ -86,7 +83,7 @@ export default function Index() {
           await AsyncStorage.setItem(STORAGE_KEYS.SESSION_ID, newSessionId);
         }
       } catch (err) {
-        console.error('Error hydrating chat from storage:', err);
+        console.error('Error hydrating chat:', err);
       } finally {
         setIsHydrating(false);
       }
@@ -95,7 +92,6 @@ export default function Index() {
     hydrateFromStorage();
   }, []);
 
-  // --- scroll jos la fiecare mesaj nou --------------------------------------
   useEffect(() => {
     if (isHydrating) return;
     setTimeout(() => {
@@ -103,7 +99,6 @@ export default function Index() {
     }, 100);
   }, [messages, isHydrating]);
 
-  // --- helper: persist mesaje -----------------------------------------------
   const persistMessages = async (msgs: Message[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(msgs));
@@ -112,40 +107,30 @@ export default function Index() {
     }
   };
 
-  // --- reset chat manual -----------------------------------------------------
   const resetChat = async () => {
-    const freshMessage: Message = {
-      ...INITIAL_HAWY_MESSAGE,
-      id: '1',
-      timestamp: new Date(),
-    };
-
+    const fresh = { ...INITIAL_HAWY_MESSAGE, timestamp: new Date() };
     const newSessionId = `session_${Date.now()}`;
 
     sessionIdRef.current = newSessionId;
-    setMessages([freshMessage]);
+    setMessages([fresh]);
+
     await Promise.all([
-      AsyncStorage.setItem(
-        STORAGE_KEYS.MESSAGES,
-        JSON.stringify([freshMessage]),
-      ),
+      AsyncStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify([fresh])),
       AsyncStorage.setItem(STORAGE_KEYS.SESSION_ID, newSessionId),
     ]);
   };
 
-  // --- logout ---------------------------------------------------------------
   const handleLogout = async () => {
     try {
       await logout();
       await AsyncStorage.removeItem(STORAGE_KEYS.MESSAGES);
       await AsyncStorage.removeItem(STORAGE_KEYS.SESSION_ID);
-      setMessages([INITIAL_HAWY_MESSAGE]); // curățăm și state-ul local
+      setMessages([INITIAL_HAWY_MESSAGE]);
     } catch (err) {
       console.error('Error during logout:', err);
     }
   };
 
-  // --- trimite mesaj --------------------------------------------------------
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading || isHydrating) return;
 
@@ -173,21 +158,18 @@ export default function Index() {
     });
 
     try {
-      const currentSessionId = sessionIdRef.current!;
       const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage.text,
-          session_id: currentSessionId,
-          language: i18n.language, // "en" sau "ro"
+          session_id: sessionIdRef.current!,
+          language: i18n.language,
         }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`Failed to get response: ${response.status}`);
+        throw new Error('Backend error');
       }
 
       const data = await response.json();
@@ -196,7 +178,7 @@ export default function Index() {
         id: (Date.now() + 1).toString(),
         text: data.response,
         sender: 'hawy',
-        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        timestamp: new Date(),
       };
 
       setMessages((prev) => {
@@ -204,16 +186,16 @@ export default function Index() {
         void persistMessages(updated);
         return updated;
       });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
+    } catch (err) {
+      const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Oops! I had a little trouble there. Can you try asking again? 🦔",
+        text: "Oops! Something went wrong. Try again! 🦔",
         sender: 'hawy',
         timestamp: new Date(),
       };
+
       setMessages((prev) => {
-        const updated = [...prev, errorMessage];
+        const updated = [...prev, errorMsg];
         void persistMessages(updated);
         return updated;
       });
@@ -222,7 +204,6 @@ export default function Index() {
     }
   };
 
-  // --- UI „loading” cât timp se încarcă auth / storage ----------------------
   if (initializing || isHydrating) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -232,12 +213,8 @@ export default function Index() {
     );
   }
 
-  // dacă nu există user după ce a terminat de inițializat → mergem la login
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
+  if (!user) return <Redirect href="/login" />;
 
-  // --- RENDER CHAT ----------------------------------------------------------
   const renderMessage = (message: Message) => {
     const isHawy = message.sender === 'hawy';
 
@@ -254,6 +231,7 @@ export default function Index() {
             <Text style={styles.hawyAvatarText}>🦔</Text>
           </View>
         )}
+
         <View
           style={[
             styles.messageBubble,
@@ -269,6 +247,7 @@ export default function Index() {
             {message.text}
           </Text>
         </View>
+
         {!isHawy && (
           <View style={styles.userAvatar}>
             <Text style={styles.userAvatarText}>👤</Text>
@@ -279,110 +258,123 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="light" />
+    <LinearGradient
+      colors={['#0c0c0f', '#1a1a1e', '#5b0a0a']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradientBackground}
+    >
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar style="light" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>🦔</Text>
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>Hawy the Hedgehog</Text>
-            <Text style={styles.headerSubtitle}>
-              {user?.name
-                ? `${user.name} • Your TaeKwon-Do Friend`
-                : 'Your TaeKwon-Do Friend'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.smallButton} onPress={resetChat}>
-            <Text style={styles.smallButtonText}>Reset</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.smallButton, styles.logoutButton]}
-            onPress={handleLogout}
-          >
-            <Text style={styles.smallButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Chat Messages */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.chatContainer}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.map(renderMessage)}
-
-          {isLoading && (
-            <View
-              style={[styles.messageContainer, styles.hawyMessageContainer]}
-            >
-              <View style={styles.hawyAvatar}>
-                <Text style={styles.hawyAvatarText}>🦔</Text>
-              </View>
-              <View
-                style={[
-                  styles.messageBubble,
-                  styles.hawyBubble,
-                  styles.loadingBubble,
-                ]}
-              >
-                <ActivityIndicator size="small" color="#6366F1" />
-                <Text style={styles.loadingText}>Hawy is thinking...</Text>
-              </View>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logo}>🦔</Text>
             </View>
-          )}
-        </ScrollView>
+            <View>
+              <Text style={styles.headerTitle}>Hawy the Hedgehog Coach</Text>
+              <Text style={styles.headerSubtitle}>
+                {user?.name
+                  ? `${user.name} • Prietenul tău in TaeKwon-Do`
+                  : 'Prietenul tău in TaeKwon-Do'}
+              </Text>
+            </View>
+          </View>
 
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Ask Hawy about TaeKwon-Do..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              maxLength={500}
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-              blurOnSubmit={false}
-            />
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.smallButton} onPress={resetChat}>
+              <Text style={styles.smallButtonText}>Reset</Text>
+            </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!inputText.trim() || isLoading || isHydrating) &&
-                  styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!inputText.trim() || isLoading || isHydrating}
+              style={[styles.smallButton, styles.logoutButton]}
+              onPress={handleLogout}
             >
-              <Text style={styles.sendButtonText}>➤</Text>
+              <Text style={styles.smallButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        {/* CHAT */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.chatContainer}
+        >
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {messages.map(renderMessage)}
+
+            {isLoading && (
+              <View
+                style={[styles.messageContainer, styles.hawyMessageContainer]}
+              >
+                <View style={styles.hawyAvatar}>
+                  <Text style={styles.hawyAvatarText}>🦔</Text>
+                </View>
+                <View
+                  style={[
+                    styles.messageBubble,
+                    styles.hawyBubble,
+                    styles.loadingBubble,
+                  ]}
+                >
+                  <ActivityIndicator size="small" color="#6366F1" />
+                  <Text style={styles.loadingText}>Hawy is thinking...</Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* INPUT */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Ask Hawy about TaeKwon-Do..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                maxLength={500}
+                onSubmitEditing={sendMessage}
+                returnKeyType="send"
+                blurOnSubmit={false}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!inputText.trim() || isLoading || isHydrating) &&
+                    styles.sendButtonDisabled,
+                ]}
+                onPress={sendMessage}
+                disabled={!inputText.trim() || isLoading || isHydrating}
+              >
+                <Text style={styles.sendButtonText}>➤</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#111114',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -390,10 +382,7 @@ const styles = StyleSheet.create({
     color: '#E5E7EB',
     fontSize: 18,
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#F0F9FF',
-  },
+
   header: {
     backgroundColor: '#6366F1',
     paddingHorizontal: 20,
@@ -410,6 +399,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -461,6 +451,7 @@ const styles = StyleSheet.create({
     color: '#E0E7FF',
     marginTop: 2,
   },
+
   chatContainer: {
     flex: 1,
   },
