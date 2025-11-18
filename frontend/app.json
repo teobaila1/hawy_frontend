@@ -11,6 +11,7 @@
       "backgroundColor": "#000000"
     },
     "ios": {
+      "bundleIdentifier": "com.teutu22.hawycoach",
       "supportsTablet": true
     },
     "android": {
